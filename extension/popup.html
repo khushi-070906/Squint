@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body{
+    width:340px; margin:0; padding:20px;
+    font-family:'Segoe UI', Inter, sans-serif;
+    background:#EAF4FC; color:#10151C;
+  }
+  .brand{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:17px; margin-bottom:14px;}
+  .brand svg{ width:22px; height:22px; overflow:visible; }
+  #lidTop, #lidBottom{ transition: transform .32s cubic-bezier(.45,0,.2,1); }
+  #lidTop{ transform: translateY(-34px); }
+  #lidBottom{ transform: translateY(34px); }
+  #eyeSvg.scanning #lidTop{ transform: translateY(0); }
+  #eyeSvg.scanning #lidBottom{ transform: translateY(0); }
+  @keyframes blinkOpen{
+    0%{ transform: translateY(0); }
+    55%{ transform: translateY(0); }
+    100%{ transform: translateY(var(--lid-rest)); }
+  }
+  #eyeSvg.blink #lidTop{ animation: blinkOpen .38s ease forwards; --lid-rest:-34px; }
+  #eyeSvg.blink #lidBottom{ animation: blinkOpen .38s ease forwards; --lid-rest:34px; }
+  #lashesOpen, #lashesClosed{ transition: opacity .22s ease; }
+  #lashesClosed{ opacity:0; }
+  #eyeSvg.scanning #lashesOpen{ opacity:0; }
+  #eyeSvg.scanning #lashesClosed{ opacity:1; }
+  p.sub{ font-size:12.5px; color:#445063; margin-bottom:16px; }
+  button{
+    width:100%; padding:12px; border:none; border-radius:10px;
+    background:#10151C; color:#fff; font-size:14px; font-weight:600;
+    cursor:pointer; margin-bottom:10px;
+  }
+  button.secondary{
+    background:#fff; color:#10151C; border:1px solid rgba(16,21,28,0.18);
+  }
+  button:disabled{ opacity:0.5; cursor:not-allowed; }
+  #status{ font-size:12.5px; color:#445063; min-height:18px; margin-bottom:8px;}
+  .log{
+    background:#fff; border:1px solid rgba(16,21,28,0.12); border-radius:10px;
+    padding:10px 12px; font-family:'Consolas', monospace; font-size:11.5px;
+    max-height:180px; overflow-y:auto; margin-bottom:10px;
+  }
+  .log div{ padding:3px 0; border-bottom:1px dashed rgba(16,21,28,0.08); }
+  .log div:last-child{ border-bottom:none; }
+  .ok{ color:#2C7373; }
+  .flag{ color:#FF5A36; }
+  .badge{
+    display:flex; align-items:center; gap:8px; padding:10px 12px;
+    border-radius:10px; font-size:12.5px; font-weight:600; margin-bottom:10px;
+  }
+  .badge.pass{ background:#DFF3EC; color:#186A50; }
+  .badge.fail{ background:#FDE4DD; color:#B23A17; }
+  .badge.idle{ background:#fff; color:#445063; border:1px solid rgba(16,21,28,0.12); }
+  .dot{ width:9px; height:9px; border-radius:50%; background:currentColor; flex:none; }
+</style>
+</head>
+<body>
+  <div class="brand">
+    <svg viewBox="0 0 64 64" id="eyeSvg">
+      <defs>
+        <clipPath id="eyeClip">
+          <path d="M32 16c14 0 24 12 28 16-4 4-14 16-28 16S8 36 4 32c4-4 14-16 28-16z"/>
+        </clipPath>
+      </defs>
+      <path d="M32 16c14 0 24 12 28 16-4 4-14 16-28 16S8 36 4 32c4-4 14-16 28-16z" fill="#EAF4FC" stroke="#10151C" stroke-width="3"/>
+      <g clip-path="url(#eyeClip)">
+        <circle cx="32" cy="32" r="12" fill="#3E9C9C"/>
+        <circle cx="32" cy="32" r="6" fill="#10151C"/>
+        <rect id="lidTop" x="0" y="0" width="64" height="34" fill="#10151C"/>
+        <rect id="lidBottom" x="0" y="30" width="64" height="34" fill="#10151C"/>
+      </g>
+      <g id="lashesOpen" stroke="#10151C" stroke-width="2.6" stroke-linecap="round" fill="none">
+        <line x1="14" y1="20" x2="7" y2="8"/>
+        <line x1="21" y1="15" x2="17" y2="2"/>
+        <line x1="32" y1="13" x2="32" y2="-1"/>
+        <line x1="43" y1="15" x2="47" y2="2"/>
+        <line x1="50" y1="20" x2="57" y2="8"/>
+      </g>
+      <g id="lashesClosed" stroke="#10151C" stroke-width="2.6" stroke-linecap="round" fill="none">
+        <line x1="14" y1="34" x2="7" y2="46"/>
+        <line x1="21" y1="39" x2="17" y2="52"/>
+        <line x1="32" y1="41" x2="32" y2="55"/>
+        <line x1="43" y1="39" x2="47" y2="52"/>
+        <line x1="50" y1="34" x2="57" y2="46"/>
+      </g>
+    </svg>
+    Squint
+  </div>
+  <p class="sub">Scans this tab locally, redacts PII, then sends only the sanitized frame to your server.</p>
+
+  <div id="badge" class="badge idle"><span class="dot"></span><span id="badgeText">Cold Start Self-Test: not run yet</span></div>
+
+  <button id="scanBtn">Scan &amp; redact this tab</button>
+  <button id="selfTestBtn" class="secondary">Run Cold Start Self-Test</button>
+  <div id="status"></div>
+  <div class="log" id="log">Waiting for a scan…</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

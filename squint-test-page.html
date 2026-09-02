@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Squint Test Page</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; background: #f4f6f9; margin: 0; padding: 40px; color: #10151C; }
+  .card { max-width: 480px; margin: 0 auto 30px; background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  p.note { color: #667; font-size: 13px; margin-bottom: 20px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
+  input { width: 100%; padding: 10px 12px; border: 1px solid #dde2e8; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+  button { margin-top: 20px; width: 100%; padding: 12px; background: #10151C; color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+  .plain-pii { font-size: 13px; line-height: 1.7; background: #fafbfc; border: 1px dashed #dde2e8; padding: 12px 14px; border-radius: 8px; }
+  .avatar { width: 70px; height: 70px; border-radius: 50%; background: #cbd5e0; display: inline-block; vertical-align: middle; margin-right: 10px; }
+</style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>Login</h1>
+    <p class="note">Squint's DOM scan should flag the email and password fields below.</p>
+    <label for="email">Email</label>
+    <input id="email" type="email" name="email" placeholder="you@example.com">
+    <label for="password">Password</label>
+    <input id="password" type="password" name="password" placeholder="••••••••">
+    <button type="button">Sign in</button>
+  </div>
+
+  <div class="card">
+    <h1>Payment details</h1>
+    <p class="note">Card number and CVV fields — also flagged as sensitive by construction.</p>
+    <label for="cc">Card number</label>
+    <input id="cc" type="text" name="cardnumber" placeholder="4111 1111 1111 1111" autocomplete="cc-number">
+    <label for="cvv">CVV</label>
+    <input id="cvv" type="text" name="cvv" placeholder="123" autocomplete="cc-csc">
+    <label for="otp">One-time passcode</label>
+    <input id="otp" type="text" name="otp" placeholder="6-digit OTP">
+    <button type="button">Pay now</button>
+  </div>
+
+  <div class="card">
+    <h1>Contact block (plain text PII)</h1>
+    <p class="note">This text isn't inside a form field — tests the regex-based PII scan instead.</p>
+    <div class="plain-pii">
+      Reach the support desk at squint.support@example.com or call
+      +91 98765 43210. Reference PAN: ABCDE1234F. Card on file ends
+      in 4111 1111 1111 1111.
+    </div>
+  </div>
+
+  <div class="card">
+    <h1>Profile</h1>
+    <p class="note">Placeholder avatar block — a real photo here would test the ONNX face detector, if the model is installed.</p>
+    <div class="avatar"></div>
+    <span>Random User · random.user@example.com</span>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Squint offscreen worker</title>
+  <!--
+    This page exists purely so background.js (an MV3 service worker with no
+    DOM/GPU access) can delegate Canvas + WebGPU/WASM work somewhere that
+    actually has a document context. Nothing here is user-visible.
+
+    ort.min.js is vendored locally at extension/lib/ort.min.js (copied from
+    node_modules/onnxruntime-web/dist) instead of loaded from a CDN, so this
+    offscreen document makes zero external network requests.
+  -->
+  <script src="network-monitor.js"></script>
+  <script src="lib/ort.min.js"></script>
+  <script src="onnx-inference.js"></script>
+  <script src="yolo-inference.js"></script>
+  <script src="dp-noise.js"></script>
+  <script src="offscreen.js"></script>
+</head>
+<body></body>
+</html>
