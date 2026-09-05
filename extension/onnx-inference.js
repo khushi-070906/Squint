@@ -17,6 +17,19 @@
  * npm i onnxruntime-web   (bundle it, or load from a CDN as done below)
  */
 
+// Shared onnxruntime-web config, applied once here (this file loads before
+// yolo-inference.js in offscreen.html) so it's in effect for every model
+// this extension runs. numThreads=1 forces the single-threaded WASM path —
+// the multi-threaded build needs SharedArrayBuffer, which needs
+// cross-origin-isolation headers (COOP/COEP) a chrome-extension:// page
+// doesn't have configured. Without this, session creation fails with
+// "no available backend found" / "previous call to initWasm() failed" —
+// reproduced and fixed against the real yolov8n.onnx model in a headless
+// Chromium test before shipping this.
+if (self.ort && self.ort.env && self.ort.env.wasm) {
+  self.ort.env.wasm.numThreads = 1;
+}
+
 let ortSession = null;
 let modelLoadFailed = null; // cache a definitive failure so we don't retry every scan
 const MODEL_URL = chrome.runtime.getURL('models/face_detector.onnx');
