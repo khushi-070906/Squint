@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Squint — Telemetry</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#EAF4FC; --ink:#10151C; --muted:#445063; --teal:#3E9C9C;
+    --ok:#2C7373; --flag:#FF5A36; --pass-bg:#DFF3EC; --pass-ink:#186A50;
+    --fail-bg:#FDE4DD; --fail-ink:#B23A17; --line:rgba(16,21,28,0.12);
+    --card:#ffffff;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Segoe UI', Inter, sans-serif;
+  }
+
+  header{
+    padding:38px 32px 30px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, #F3F9FE 0%, var(--bg) 100%);
+  }
+  .header-inner{ max-width:1180px; margin:0 auto; }
+  .brand{ display:flex; align-items:center; gap:14px; }
+  .brand svg{ width:46px; height:46px; overflow:visible; flex:none; }
+  #lidTop, #lidBottom{ transition: transform .32s cubic-bezier(.45,0,.2,1); }
+  #lidTop{ transform: translateY(-34px); }
+  #lidBottom{ transform: translateY(34px); }
+  #eyeSvg.scanning #lidTop{ transform: translateY(0); }
+  #eyeSvg.scanning #lidBottom{ transform: translateY(0); }
+  @keyframes blinkOpen{
+    0%{ transform: translateY(0); }
+    55%{ transform: translateY(0); }
+    100%{ transform: translateY(var(--lid-rest)); }
+  }
+  #eyeSvg.blink #lidTop{ animation: blinkOpen .38s ease forwards; --lid-rest:-34px; }
+  #eyeSvg.blink #lidBottom{ animation: blinkOpen .38s ease forwards; --lid-rest:34px; }
+  #lashesOpen, #lashesClosed{ transition: opacity .22s ease, transform .32s cubic-bezier(.45,0,.2,1); }
+  #lashesOpen{ transform: translateY(0); }
+  #lashesClosed{ opacity:0; transform: translateY(-16px); }
+  #eyeSvg.scanning #lashesOpen{ opacity:0; transform: translateY(34px); }
+  #eyeSvg.scanning #lashesClosed{ opacity:1; transform: translateY(0); }
+  .brand h1{ font-size:26px; margin:0; font-weight:700; letter-spacing:-0.02em; }
+  .brand p{ margin:3px 0 0; font-size:13.5px; color:var(--muted); }
+
+  .badge{
+    display:inline-flex; align-items:center; gap:8px; padding:8px 14px;
+    border-radius:999px; font-size:12.5px; font-weight:600; margin-top:18px;
+  }
+  .badge.pass{ background:var(--pass-bg); color:var(--pass-ink); }
+  .badge.fail{ background:var(--fail-bg); color:var(--fail-ink); }
+  .badge.idle{ background:#fff; color:var(--muted); border:1px solid var(--line); }
+  .dot{ width:8px; height:8px; border-radius:50%; background:currentColor; flex:none; }
+
+  main{ max-width:1180px; margin:0 auto; padding:28px 32px 60px; }
+
+  .stats-row{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(190px,1fr));
+    gap:16px; margin-bottom:26px;
+  }
+  .stat-card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:18px 20px;
+  }
+  .stat-card .label{ font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .stat-card .value{ font-size:30px; font-weight:700; margin-top:6px; }
+  .stat-card .value.flag{ color:var(--flag); }
+  .stat-card .value.ok{ color:var(--ok); }
+
+  .charts-row{
+    display:grid; grid-template-columns:1.3fr 1fr; gap:16px; margin-bottom:16px;
+  }
+  .charts-row-2{
+    display:grid; grid-template-columns:1fr; gap:16px; margin-bottom:26px;
+  }
+  .panel{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:20px 22px;
+  }
+  .panel h2{ font-size:14px; margin:0 0 14px; font-weight:700; }
+  .panel .chart-wrap{ position:relative; height:230px; }
+
+  .log-panel .log{
+    max-height:360px; overflow-y:auto; font-family:'Consolas', monospace; font-size:12.5px;
+  }
+  .log-row{ padding:10px 0; border-bottom:1px dashed var(--line); }
+  .log-row:last-child{ border-bottom:none; }
+  .log-row .meta{ color:var(--muted); font-size:11px; margin-bottom:3px; }
+  .log-row .summary{ color:var(--ink); }
+  .log-row.error .summary{ color:var(--fail-ink); }
+  .pill{
+    display:inline-block; font-size:10.5px; padding:2px 7px; border-radius:6px;
+    background:var(--pass-bg); color:var(--pass-ink); font-weight:600; margin-right:6px;
+  }
+  .pill.error{ background:var(--fail-bg); color:var(--fail-ink); }
+
+  @media (max-width: 860px){
+    .charts-row{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <svg viewBox="0 0 64 64" id="eyeSvg">
+        <defs>
+          <clipPath id="eyeClip">
+            <path d="M32 16c14 0 24 12 28 16-4 4-14 16-28 16S8 36 4 32c4-4 14-16 28-16z"/>
+          </clipPath>
+        </defs>
+        <path d="M32 16c14 0 24 12 28 16-4 4-14 16-28 16S8 36 4 32c4-4 14-16 28-16z" fill="#EAF4FC" stroke="#10151C" stroke-width="3"/>
+        <g clip-path="url(#eyeClip)">
+          <circle cx="32" cy="32" r="12" fill="#3E9C9C"/>
+          <circle cx="32" cy="32" r="6" fill="#10151C"/>
+          <rect id="lidTop" x="0" y="0" width="64" height="34" fill="#10151C"/>
+          <rect id="lidBottom" x="0" y="30" width="64" height="34" fill="#10151C"/>
+        </g>
+        <g id="lashesOpen" stroke="#10151C" stroke-width="2.6" stroke-linecap="round" fill="none">
+          <line x1="14" y1="20" x2="7" y2="8"/>
+          <line x1="21" y1="15" x2="17" y2="2"/>
+          <line x1="32" y1="13" x2="32" y2="-1"/>
+          <line x1="43" y1="15" x2="47" y2="2"/>
+          <line x1="50" y1="20" x2="57" y2="8"/>
+        </g>
+        <g id="lashesClosed" stroke="#10151C" stroke-width="2.6" stroke-linecap="round" fill="none">
+          <line x1="14" y1="34" x2="7" y2="46"/>
+          <line x1="21" y1="39" x2="17" y2="52"/>
+          <line x1="32" y1="41" x2="32" y2="55"/>
+          <line x1="43" y1="39" x2="47" y2="52"/>
+          <line x1="50" y1="34" x2="57" y2="46"/>
+        </g>
+      </svg>
+      <div>
+        <h1>Squint — Telemetry</h1>
+        <p>Reads the local audit log only. Never displays raw PII — just redaction metadata, timings, and resource counters.</p>
+      </div>
+    </div>
+    <div id="badge" class="badge idle"><span class="dot"></span><span id="badgeText">Connecting…</span></div>
+  </div>
+</header>
+
+<main>
+  <div class="stats-row">
+    <div class="stat-card"><div class="label">Total scans</div><div class="value" id="statTotal">–</div></div>
+    <div class="stat-card"><div class="label">Failed scans</div><div class="value flag" id="statFailed">–</div></div>
+    <div class="stat-card"><div class="label">Avg latency</div><div class="value" id="statLatency">–</div></div>
+    <div class="stat-card"><div class="label">Regions redacted</div><div class="value ok" id="statRegions">–</div></div>
+  </div>
+
+  <div class="charts-row">
+    <div class="panel">
+      <h2>Latency over time (ms)</h2>
+      <div class="chart-wrap"><canvas id="latencyChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>Redaction types</h2>
+      <div class="chart-wrap"><canvas id="typesChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts-row-2">
+    <div class="panel">
+      <h2>Client resource usage</h2>
+      <div class="chart-wrap"><canvas id="resourceChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel log-panel">
+    <h2>Recent activity</h2>
+    <div class="log" id="activityLog">Waiting for scans…</div>
+  </div>
+</main>
+
+<script>
+const API_BASE = window.location.origin;
+const eyeEl = document.getElementById('eyeSvg');
+const badgeEl = document.getElementById('badge');
+const badgeTextEl = document.getElementById('badgeText');
+
+function setBadge(state, text){
+  badgeEl.className = `badge ${state}`;
+  badgeTextEl.textContent = text;
+}
+function closeEye(){ eyeEl.classList.remove('blink'); eyeEl.classList.add('scanning'); }
+function openEye(){
+  eyeEl.classList.remove('scanning');
+  eyeEl.classList.add('blink');
+  setTimeout(() => eyeEl.classList.remove('blink'), 400);
+}
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str ?? '';
+  return d.innerHTML;
+}
+
+const chartsAvailable = typeof Chart !== 'undefined';
+if (!chartsAvailable){
+  document.querySelectorAll('.chart-wrap').forEach(el => {
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#B23A17;font-size:12.5px;text-align:center;padding:12px;">Chart engine failed to load from CDN — stats and activity log below still work.</div>';
+  });
+} else {
+  Chart.defaults.font.family = "'Segoe UI', Inter, sans-serif";
+  Chart.defaults.color = '#445063';
+}
+
+const latencyChart = chartsAvailable ? new Chart(document.getElementById('latencyChart'), {
+  type: 'line',
+  data: { labels: [], datasets: [{
+    label: 'Total latency (ms)', data: [],
+    borderColor: '#3E9C9C', backgroundColor: 'rgba(62,156,156,0.12)',
+    tension: 0.3, fill: true, pointRadius: 2
+  }]},
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { display: false }, y: { beginAtZero: true, grid: { color: 'rgba(16,21,28,0.06)' } } }
+  }
+}) : null;
+
+const typesChart = chartsAvailable ? new Chart(document.getElementById('typesChart'), {
+  type: 'doughnut',
+  data: { labels: [], datasets: [{
+    data: [],
+    backgroundColor: ['#3E9C9C', '#FF5A36', '#186A50', '#B23A17', '#10151C', '#7FB8B8', '#F2A38A']
+  }]},
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } }
+  }
+}) : null;
+
+const resourceChart = chartsAvailable ? new Chart(document.getElementById('resourceChart'), {
+  type: 'bar',
+  data: { labels: [], datasets: [
+    { label: 'JS heap used (MB)', data: [], backgroundColor: '#3E9C9C', yAxisID: 'y' },
+    { label: 'Hardware concurrency', data: [], type: 'line', borderColor: '#FF5A36', backgroundColor: '#FF5A36', yAxisID: 'y1', tension: 0.3 }
+  ]},
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: {
+      x: { display: false },
+      y: { position: 'left', beginAtZero: true, grid: { color: 'rgba(16,21,28,0.06)' } },
+      y1: { position: 'right', beginAtZero: true, grid: { display: false } }
+    }
+  }
+}) : null;
+
+let lastSeenId = null;
+
+async function refresh(){
+  closeEye();
+  try{
+    const [stats, auditRes] = await Promise.all([
+      fetch(`${API_BASE}/audit/stats`).then(r => r.json()),
+      fetch(`${API_BASE}/audit?limit=100`).then(r => r.json())
+    ]);
+    setBadge('pass', 'Live · reading squint_audit.db');
+
+    document.getElementById('statTotal').textContent = stats.total_scans ?? 0;
+    document.getElementById('statFailed').textContent = stats.failed_scans ?? 0;
+    document.getElementById('statLatency').textContent =
+      stats.avg_total_latency_ms ? `${Math.round(stats.avg_total_latency_ms)} ms` : '–';
+    document.getElementById('statRegions').textContent = stats.total_regions_redacted ?? 0;
+
+    const scans = (auditRes.scans || []).slice().reverse();
+
+    if (latencyChart){
+      latencyChart.data.labels = scans.map((s, i) => i);
+      latencyChart.data.datasets[0].data = scans.map(s => {
+        const t = s.timings || {};
+        return t.total_ms ?? t.approx_total_ms ?? null;
+      });
+      latencyChart.update('none');
+    }
+
+    const typeCounts = {};
+    scans.forEach(s => (s.region_types || []).forEach(rt => {
+      typeCounts[rt.type] = (typeCounts[rt.type] || 0) + rt.count;
+    }));
+    if (typesChart){
+      typesChart.data.labels = Object.keys(typeCounts);
+      typesChart.data.datasets[0].data = Object.values(typeCounts);
+      typesChart.update('none');
+    }
+
+    if (resourceChart){
+      resourceChart.data.labels = scans.map((s, i) => i);
+      resourceChart.data.datasets[0].data = scans.map(s => s.resources?.js_heap_used_mb ?? null);
+      resourceChart.data.datasets[1].data = scans.map(s => s.resources?.hardware_concurrency ?? null);
+      resourceChart.update('none');
+    }
+
+    const newest = auditRes.scans || [];
+    const logEl = document.getElementById('activityLog');
+    logEl.innerHTML = newest.map(s => {
+      const isError = !!s.error;
+      const when = new Date(s.ts * 1000).toLocaleTimeString();
+      const regions = (s.region_types || []).map(rt => `${rt.count}× ${rt.type}`).join(', ') || 'no regions';
+      return `<div class="log-row ${isError ? 'error' : ''}">
+        <div class="meta">${when} · <span class="pill ${isError ? 'error' : ''}">${escapeHtml(s.vlm_mode || (isError ? 'error' : 'ok'))}</span>${regions}</div>
+        <div class="summary">${escapeHtml(isError ? s.error : (s.vlm_summary || s.task || '(no summary)'))}</div>
+      </div>`;
+    }).join('') || 'No scans yet.';
+
+    if (newest.length && newest[0].id !== lastSeenId){
+      lastSeenId = newest[0].id;
+    }
+  } catch(e){
+    setBadge('fail', 'Server unreachable — is app.py running?');
+  } finally {
+    openEye();
+  }
+}
+
+refresh();
+setInterval(refresh, 4000);
+</script>
+</body>
+</html>
