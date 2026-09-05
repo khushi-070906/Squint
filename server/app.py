@@ -19,7 +19,7 @@ from typing import Optional
 
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from PIL import Image
 import io
 import httpx
@@ -27,6 +27,8 @@ import httpx
 import audit
 
 app = FastAPI(title="Squint server")
+
+DASHBOARD_HTML = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")
 
 # extension runs from chrome-extension://... origin
 app.add_middleware(
@@ -46,7 +48,7 @@ def _init_audit_db():
 # vLLM / ollama / text-generation-inference exposing an OpenAI-compatible
 # /v1/chat/completions endpoint), or a hosted API during a live demo.
 VLM_API_URL = os.environ.get("VLM_API_URL", "http://localhost:11434/v1/chat/completions")
-VLM_MODEL = os.environ.get("VLM_MODEL", "qwen2-vl:7b")
+VLM_MODEL = os.environ.get("VLM_MODEL", "qwen2.5vl:7b")
 VLM_API_KEY = os.environ.get("VLM_API_KEY", "")  # empty for local models
 
 
@@ -207,7 +209,7 @@ async def call_vlm(image_b64: str, user_prompt: str) -> dict:
         "max_tokens": 400,
     }
 
-    async with httpx.AsyncClient(timeout=90) as client:
+    async with httpx.AsyncClient(timeout=180) as client:
         resp = await client.post(VLM_API_URL, json=payload, headers=headers)
         resp.raise_for_status()
         data = resp.json()
@@ -255,3 +257,12 @@ async def get_audit(limit: int = 50):
 async def get_audit_stats():
     """Aggregate counters for a dashboard summary panel."""
     return JSONResponse(audit.get_stats())
+
+
+@app.get("/dashboard")
+async def dashboard():
+    """Static HTML/JS telemetry dashboard (branded to match the extension
+    popup — same eye SVG, same color tokens). Polls /audit and
+    /audit/stats above via fetch(); no server-side templating needed.
+    Replaces the old Streamlit dashboard (dashboard.py) — see README."""
+    return FileResponse(DASHBOARD_HTML)
