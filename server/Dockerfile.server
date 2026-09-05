@@ -1,0 +1,29 @@
+# Squint/Drishti — FastAPI server image.
+# Build context is the server/ folder: docker build -f Dockerfile.server .
+# (docker-compose.yml at the repo root handles this path for you.)
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# System deps: Pillow needs zlib/jpeg headers to build from source on some
+# platforms — installing the dev libs up front avoids the exact "Pillow
+# wheel build failed" problem this project already hit once on Windows.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    zlib1g-dev \
+    libjpeg-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app.py audit.py ./
+
+# squint_audit.db lives here — docker-compose.yml mounts a named volume
+# at this path so the dashboard container can read the same file.
+ENV SQUINT_AUDIT_DB=/app/data/squint_audit.db
+RUN mkdir -p /app/data
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

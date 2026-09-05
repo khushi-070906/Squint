@@ -1,0 +1,69 @@
+# Squint/Drishti — one-command backend setup.
+#
+#   docker compose up -d
+#   docker compose exec ollama ollama pull qwen2.5vl:7b   # one-time, first run only
+#
+# Then load extension/ unpacked in chrome://extensions as usual — the
+# extension itself is a browser-side artifact and isn't containerized,
+# only the backend (VLM + API server + dashboard) is.
+#
+# Services:
+#   ollama    - the VLM backend (OpenAI-compatible /v1/chat/completions)
+#   server    - the FastAPI app the extension talks to (localhost:8000)
+#   dashboard - Streamlit telemetry dashboard (localhost:8501), reads the
+#               same audit DB the server writes to via a shared volume
+#
+# GPU note: this compose file runs Ollama CPU-only for portability across
+# judges' machines. If you have an NVIDIA GPU + nvidia-container-toolkit
+# installed, uncomment the `deploy.resources` block under the ollama
+# service for a large speedup.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.server
+    ports:
+      - "8000:8000"
+    environment:
+      VLM_API_URL: http://ollama:11434/v1/chat/completions
+      VLM_MODEL: qwen2.5vl:7b
+      SQUINT_AUDIT_DB: /app/data/squint_audit.db
+    volumes:
+      - audit-data:/app/data
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      SQUINT_AUDIT_DB: /app/data/squint_audit.db
+    volumes:
+      - audit-data:/app/data
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  audit-data:      # squint_audit.db, shared read/write between server + dashboard
+  ollama-models:    # downloaded model weights, persists across `docker compose down`
