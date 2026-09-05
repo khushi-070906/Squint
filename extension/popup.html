@@ -22,10 +22,11 @@
   }
   #eyeSvg.blink #lidTop{ animation: blinkOpen .38s ease forwards; --lid-rest:-34px; }
   #eyeSvg.blink #lidBottom{ animation: blinkOpen .38s ease forwards; --lid-rest:34px; }
-  #lashesOpen, #lashesClosed{ transition: opacity .22s ease; }
-  #lashesClosed{ opacity:0; }
-  #eyeSvg.scanning #lashesOpen{ opacity:0; }
-  #eyeSvg.scanning #lashesClosed{ opacity:1; }
+  #lashesOpen, #lashesClosed{ transition: opacity .22s ease, transform .32s cubic-bezier(.45,0,.2,1); }
+  #lashesOpen{ transform: translateY(0); }
+  #lashesClosed{ opacity:0; transform: translateY(-16px); }
+  #eyeSvg.scanning #lashesOpen{ opacity:0; transform: translateY(34px); }
+  #eyeSvg.scanning #lashesClosed{ opacity:1; transform: translateY(0); }
   p.sub{ font-size:12.5px; color:#445063; margin-bottom:16px; }
   button{
     width:100%; padding:12px; border:none; border-radius:10px;
