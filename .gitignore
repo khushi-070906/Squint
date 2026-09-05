@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+server/squint_audit.db
+venv/
